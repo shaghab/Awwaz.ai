@@ -11,9 +11,14 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine.url import make_url
 
-ADMIN_URL = os.environ.get(
-    "TEST_DATABASE_URL", "postgresql+psycopg://postgres@localhost:5432/postgres"
-)
+# The bundled Compose service creates the awwaz superuser, so the documented
+# `cp .env.example .env && make dev` setup makes `make test` work with nothing
+# else exported. Point TEST_DATABASE_URL elsewhere to use a different server.
+# The database named here is only the maintenance connection used to create and
+# drop each run's throwaway database.
+DEFAULT_ADMIN_URL = "postgresql+psycopg://awwaz:awwaz@localhost:5432/postgres"
+
+ADMIN_URL = os.environ.get("TEST_DATABASE_URL") or DEFAULT_ADMIN_URL
 _DB_NAME = f"awwaz_test_{uuid.uuid4().hex[:12]}"
 _admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
 
