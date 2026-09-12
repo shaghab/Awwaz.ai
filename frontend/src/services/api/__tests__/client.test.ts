@@ -49,8 +49,6 @@ describe("apiFetch", () => {
 
     const sent = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(sent.get("Idempotency-Key")).toBe("k1");
-    // The defaults still go out alongside it.
-    expect(sent.get("Content-Type")).toBe("application/json");
     expect(sent.get("X-Request-ID")).toMatch(/^req_/);
   });
 
@@ -143,5 +141,46 @@ describe("error mapping (PRD §19)", () => {
     expect(errorMessage(new Error("boom"))).toBe(
       "Something went wrong. Please try again.",
     );
+  });
+});
+
+describe("content type", () => {
+  async function sentHeaders(init: RequestInit) {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockResponse({ success: true, data: null }));
+    await apiFetch("/thing", init);
+    return new Headers(fetchMock.mock.calls[0][1]?.headers);
+  }
+
+  it("labels a JSON string body", async () => {
+    const sent = await sentHeaders({ method: "POST", body: JSON.stringify({ a: 1 }) });
+    expect(sent.get("Content-Type")).toBe("application/json");
+  });
+
+  it("leaves FormData for the browser to type", async () => {
+    // Setting it ourselves would strip the multipart boundary and make the
+    // upload unparseable — this is the documented evidence flow.
+    const form = new FormData();
+    form.append("file", new Blob(["x"]), "photo.jpg");
+    const sent = await sentHeaders({ method: "POST", body: form });
+    expect(sent.get("Content-Type")).toBeNull();
+  });
+
+  it("leaves URLSearchParams for the browser to type", async () => {
+    const sent = await sentHeaders({
+      method: "POST",
+      body: new URLSearchParams({ a: "1" }),
+    });
+    expect(sent.get("Content-Type")).toBeNull();
+  });
+
+  it("never overrides a caller's own content type", async () => {
+    const sent = await sentHeaders({
+      method: "POST",
+      body: "<xml/>",
+      headers: { "Content-Type": "application/xml" },
+    });
+    expect(sent.get("Content-Type")).toBe("application/xml");
   });
 });

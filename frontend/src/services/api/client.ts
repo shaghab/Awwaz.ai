@@ -50,7 +50,13 @@ export async function apiFetch<T>(
   // instance (no enumerable properties, so spreading yields {}) or an array of
   // tuples (spreading yields numeric keys). Either would drop caller headers.
   const headers = new Headers(init.headers);
-  headers.set("Content-Type", headers.get("Content-Type") ?? "application/json");
+
+  // Only a string body is ours to label. FormData, Blob and URLSearchParams are
+  // typed by the browser, which also supplies the multipart boundary — setting
+  // the header ourselves would strip that and make the body unparseable.
+  if (typeof init.body === "string" && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   const requestId = headers.get("X-Request-ID") ?? newRequestId();
   headers.set("X-Request-ID", requestId);
 
