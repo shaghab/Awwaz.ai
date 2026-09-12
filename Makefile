@@ -15,8 +15,10 @@ install: ## Install backend and frontend dependencies
 	cd $(BACKEND) && uv sync
 	cd $(FRONTEND) && pnpm install
 
-db: ## Start PostgreSQL
-	docker compose up -d postgres
+# --wait blocks on the compose healthcheck; without it `migrate` can race a
+# still-starting server on a cold machine.
+db: ## Start PostgreSQL and wait for it to accept connections
+	docker compose up -d --wait postgres
 
 dev: db migrate seed ## Start Postgres, then run both apps (Ctrl-C stops both)
 	@trap 'kill 0' EXIT INT TERM; \

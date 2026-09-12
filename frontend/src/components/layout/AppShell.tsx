@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { type ReactNode, useEffect } from "react";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
@@ -21,14 +22,24 @@ export function AppShell({
   roles: Role[];
   children: ReactNode;
 }) {
+  const router = useRouter();
   const { data: actor, isPending, error } = useActor();
+
+  // A missing, expired, or revoked session sends the viewer to sign in (§19:
+  // 401 -> authenticate). Wrong role is different: they are signed in, so they
+  // get the permission state rather than a pointless trip to /login.
+  const signedOut = !isPending && !error && !actor;
+  useEffect(() => {
+    if (signedOut) router.replace("/login");
+  }, [signedOut, router]);
 
   let body: ReactNode;
   if (isPending) body = <Skeleton lines={5} label="Loading your workspace" />;
   else if (error) body = <ErrorState error={error} />;
-  else if (!actor) body = <PermissionState reason="signed-out" />;
-  else if (!roles.includes(actor.role)) body = <PermissionState reason="wrong-role" />;
-  else body = children;
+  else if (signedOut) body = <Skeleton lines={3} label="Redirecting to sign in" />;
+  else if (actor && !roles.includes(actor.role)) {
+    body = <PermissionState reason="wrong-role" />;
+  } else body = children;
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">

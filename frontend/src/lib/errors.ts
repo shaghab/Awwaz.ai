@@ -43,7 +43,3 @@ export function errorMessage(error: unknown): string {
   if (error instanceof ApiError && error.message) return error.message;
   return MESSAGES[errorKind(error)];
 }
-
-export function isUnauthenticated(error: unknown): boolean {
-  return errorKind(error) === "unauthenticated";
-}
