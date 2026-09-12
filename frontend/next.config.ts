@@ -1,4 +1,26 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import type { NextConfig } from "next";
+
+/**
+ * The documented quick start puts `.env` at the repository root, but Next only
+ * loads env files from its own directory, so `BACKEND_BASE_URL` set there was
+ * silently ignored and the proxy always fell back to localhost:8000. The backend
+ * anchors to the same root file; this is the frontend half.
+ *
+ * A real environment variable always wins over the file, so deployments and CI
+ * are unaffected.
+ */
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+if (!process.env.BACKEND_BASE_URL) {
+  try {
+    process.loadEnvFile(resolve(repoRoot, ".env"));
+  } catch {
+    // No root .env — defaults below apply.
+  }
+}
 
 const backendBaseUrl = process.env.BACKEND_BASE_URL ?? "http://localhost:8000";
 
