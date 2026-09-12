@@ -15,7 +15,7 @@ This folder breaks `Awwaz_Full_PRD.md` into six vertically sliced, independently
 
 | # | Slice | Proves | Size | Depends on |
 |---|-------|--------|------|------------|
-| 1 | [Foundation](01-foundation.md) | Both apps run against Postgres; demo auth, audit log, request IDs, and error envelope exist | L | — |
+| 1 | [Foundation](01-foundation.md) ✅ | Both apps run against Postgres; demo auth, audit log, request IDs, and error envelope exist | L | — |
 | 2 | [Complaint domain & operator surface](02-complaint-domain-and-operator-surface.md) | Structure → Route → Track: create and transition a case, see it on the dashboard and timeline | L | 1 |
 | 3 | [Agent intake](03-agent-intake.md) | Understand: Roman Urdu message → clarification → real case via tool calls, with a visible trace | L | 2 |
 | 4 | [Stall → Recommend → Approve → Act](04-stall-recommend-approve-act.md) | Detect → Recommend → Approve → Act → Verify: worker flags a seeded case, operator approves, mock adapter confirms | L | 2 |
