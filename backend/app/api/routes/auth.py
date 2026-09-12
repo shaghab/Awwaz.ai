@@ -6,11 +6,11 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.core.config import get_settings
 from app.core.envelope import ok
-from app.core.errors import NotFound
 from app.core.security import (
     Actor,
     clear_session_cookie,
     current_actor,
+    require_demo_mode,
     set_session_cookie,
 )
 from app.db.session import get_db
@@ -25,17 +25,10 @@ class DemoLoginRequest(BaseModel):
     user_key: str
 
 
-def _require_demo_mode() -> None:
-    # 404, not 403: demo endpoints are not advertised in production (PRD §12).
-    if not get_settings().AWWAZ_DEMO_MODE:
-        raise NotFound()
-
-
-@router.post("/demo-login")
+@router.post("/demo-login", dependencies=[Depends(require_demo_mode)])
 def demo_login(
     payload: DemoLoginRequest, response: Response, db: DbSession = Depends(get_db)
 ) -> dict[str, object]:
-    _require_demo_mode()
     actor, token = users.login_demo_user(db, payload.user_key)
     audit.record(
         db,
@@ -52,9 +45,8 @@ def demo_login(
     return ok({"actor": actor.to_dict()})
 
 
-@router.get("/demo-users")
+@router.get("/demo-users", dependencies=[Depends(require_demo_mode)])
 def demo_users(db: DbSession = Depends(get_db)) -> dict[str, object]:
-    _require_demo_mode()
     return ok(
         {
             "users": [

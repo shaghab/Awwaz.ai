@@ -3,10 +3,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session as DbSession
 
-from app.core.config import get_settings
 from app.core.envelope import ok
-from app.core.errors import NotFound
-from app.core.security import Actor, require_roles
+from app.core.security import Actor, require_demo_mode, require_roles
 from app.db.session import get_db
 from app.domain.audit import service as audit
 from app.models import ActorType, UserRole
@@ -14,13 +12,11 @@ from app.models import ActorType, UserRole
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-@router.post("/demo/reset")
+@router.post("/demo/reset", dependencies=[Depends(require_demo_mode)])
 def demo_reset(
     actor: Actor = Depends(require_roles(UserRole.ADMIN)),
     db: DbSession = Depends(get_db),
 ) -> dict[str, object]:
-    if not get_settings().AWWAZ_DEMO_MODE:
-        raise NotFound()
     from app.seed import reset_demo_data
 
     counts = reset_demo_data(db)

@@ -13,7 +13,7 @@ from fastapi import Depends, Request, Response
 from sqlalchemy.orm import Session as DbSession
 
 from app.core.config import get_settings
-from app.core.errors import Forbidden, Unauthorized
+from app.core.errors import Forbidden, NotFound, Unauthorized
 from app.db.session import get_db
 from app.models import User, UserRole
 from app.repositories import users as users_repo
@@ -93,6 +93,18 @@ def current_actor(actor: Actor | None = Depends(optional_actor)) -> Actor:
     if actor is None:
         raise Unauthorized()
     return actor
+
+
+def require_demo_mode() -> None:
+    """Gate demo-only routes.
+
+    Declared as a route dependency, never called inside a handler: FastAPI solves
+    decorator dependencies before parameter ones, so this runs ahead of
+    `require_roles` and every caller gets the same 404 when demo mode is off. A
+    401 or 403 would confirm the route exists (PRD §12).
+    """
+    if not get_settings().AWWAZ_DEMO_MODE:
+        raise NotFound()
 
 
 def require_roles(*roles: UserRole):  # type: ignore[no-untyped-def]

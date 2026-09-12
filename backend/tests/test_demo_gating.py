@@ -26,3 +26,20 @@ def test_demo_reset_is_hidden_even_for_admin(client, seeded, demo_mode):
     login(client, "bilal")
     demo_mode(False)
     assert client.post("/api/v1/admin/demo/reset").status_code == 404
+
+
+def test_demo_reset_is_hidden_from_anonymous_callers(prod_mode):
+    """The gate must beat the role dependency: a 401 here would confirm the route
+    exists, which is exactly what demo mode being off is meant to hide."""
+    assert prod_mode.post("/api/v1/admin/demo/reset").status_code == 404
+
+
+def test_demo_reset_is_hidden_from_the_wrong_role(client, seeded, demo_mode):
+    """Likewise a 403 — so sign in while demo mode is on, then turn it off."""
+    login(client, "sara")
+    demo_mode(False)
+    assert client.post("/api/v1/admin/demo/reset").status_code == 404
+
+
+def test_demo_users_is_hidden(prod_mode):
+    assert prod_mode.get("/api/v1/auth/demo-users").status_code == 404
