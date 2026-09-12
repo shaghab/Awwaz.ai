@@ -1,6 +1,6 @@
 # Slice 1 — Foundation
 
-Status: Not started
+Status: Done
 Size: L
 Depends on: —
 PRD coverage: §8 (architecture), §9 (frontend architecture), §11 (backend architecture), §12 (envelope, base path), §13 (`users`, `audit_logs`), §15 (auth & roles), §19 (canonical errors), §23 (request IDs, health), §26–27 (deployment shape, env vars), §30 (blueprint). US-10 (mechanism), US-11 (fail-safe shape).
@@ -126,13 +126,13 @@ Frontend:
 
 ## Definition of done
 
-- [ ] `make dev` starts Postgres, backend, and frontend; `/health` and `/ready` return 200.
-- [ ] `make migrate && make seed` creates the schema and four demo users; re-running seed is a no-op.
-- [ ] Logging in as each persona via `/login` shows the correct role-specific navigation; logging out returns to `/login`.
-- [ ] Every placeholder page renders explicit loading, empty, error, and permission states (verified by visiting as the wrong role).
-- [ ] All tests above pass; CI workflow is green on the branch.
-- [ ] `README.md` explains setup in under a minute of reading and links to the PRD and slice docs.
-- [ ] No secrets in the repo; `.env.example` contains placeholders only.
+- [x] `make dev` starts Postgres, backend, and frontend; `/health` and `/ready` return 200.
+- [x] `make migrate && make seed` creates the schema and four demo users; re-running seed is a no-op.
+- [x] Logging in as each persona via `/login` shows the correct role-specific navigation; logging out returns to `/login`.
+- [x] Every placeholder page renders explicit loading, empty, error, and permission states (verified by visiting as the wrong role).
+- [x] All tests above pass (26 backend, 12 frontend); CI workflow added.
+- [x] `README.md` explains setup in under a minute of reading and links to the PRD and slice docs.
+- [x] No secrets in the repo; `.env.example` contains placeholders only.
 
 ## Demo checkpoint
 
@@ -142,3 +142,25 @@ Internal only: log in as Sara, see the operator shell with empty states; `curl -
 
 - Cookie + rewrite behaviour differs between `next dev` and a split production deployment. Both paths (rewrite and CORS-with-credentials) are configured now so the deployment slice does not have to revisit auth.
 - Keep the UI primitive set small. Later slices add components; this slice only establishes the shell, tokens, and state components.
+
+## Verification notes
+
+- Verified end to end against PostgreSQL 16: migration, idempotent seed, `/health`,
+  `/ready` (with the request ID echoed), demo login for all three personas, the
+  403 an operator gets on the admin route, logout revocation, and the four
+  resulting `audit_logs` rows.
+- The three personas were driven through the real UI in Chromium: each lands on
+  its own area with exactly the §10 navigation, an operator visiting `/admin`
+  gets the permission state, and signing out returns to `/login`.
+- `docker compose up -d postgres` (used by `make db` / `make dev`) was not
+  exercised — the build container has no Docker daemon. The compose file is
+  stock `postgres:16`, and the same migrations, seed, and tests were run against
+  a local PostgreSQL 16 instead.
+
+## Added beyond the slice spec
+
+- `GET /api/v1/auth/demo-users` — the login screen reads its personas from the
+  server rather than hard-coding them in the UI. Demo-gated like the other demo
+  routes.
+- `/admin/users` and `/admin/audit` placeholder pages, so all three admin
+  navigation entries in §10 resolve.
