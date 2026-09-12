@@ -1,5 +1,7 @@
 /** Typed fetch wrapper around the PRD §12 envelope. */
 
+import { z } from "zod";
+
 export class ApiError extends Error {
   constructor(
     readonly code: string,
@@ -12,12 +14,26 @@ export class ApiError extends Error {
   }
 }
 
-type Envelope<T> =
-  | { success: true; data: T; meta?: { request_id?: string } }
-  | {
-      success: false;
-      error: { code: string; message: string; request_id?: string };
-    };
+/**
+ * Validated rather than cast: a proxy or gateway can return parseable JSON that
+ * is not an envelope at all, and reading `error.code` off that throws instead of
+ * producing the ApiError callers rely on.
+ */
+const envelopeSchema = z.discriminatedUnion("success", [
+  z.object({
+    success: z.literal(true),
+    data: z.unknown(),
+    meta: z.object({ request_id: z.string().optional() }).optional(),
+  }),
+  z.object({
+    success: z.literal(false),
+    error: z.object({
+      code: z.string(),
+      message: z.string(),
+      request_id: z.string().optional(),
+    }),
+  }),
+]);
 
 function newRequestId(): string {
   const bytes = new Uint8Array(13);
@@ -41,16 +57,18 @@ export async function apiFetch<T>(
     },
   });
 
-  let body: Envelope<T> | null = null;
+  let payload: unknown;
   try {
-    body = (await response.json()) as Envelope<T>;
+    payload = await response.json();
   } catch {
-    body = null;
+    payload = undefined;
   }
 
-  if (body && body.success) return body.data;
+  const parsed = envelopeSchema.safeParse(payload);
 
-  if (body && !body.success) {
+  if (parsed.success) {
+    const body = parsed.data;
+    if (body.success) return body.data as T;
     throw new ApiError(
       body.error.code,
       body.error.message,
@@ -59,11 +77,12 @@ export async function apiFetch<T>(
     );
   }
 
-  // A non-enveloped response (proxy error, network edge) still fails truthfully.
+  // Not an envelope at all — a proxy error page, a gateway's own JSON, an empty
+  // body. Still fails truthfully, carrying the status and a request ID.
   throw new ApiError(
     "INTERNAL_ERROR",
     "Something went wrong. Please try again.",
     response.status,
-    response.headers.get("X-Request-ID"),
+    response.headers.get("X-Request-ID") ?? requestId,
   );
 }

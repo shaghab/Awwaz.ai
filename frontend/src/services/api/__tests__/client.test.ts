@@ -61,7 +61,7 @@ describe("apiFetch", () => {
     });
   });
 
-  it("fails truthfully when the response is not an envelope", async () => {
+  it("fails truthfully when the response is not JSON", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response("<html>502</html>", { status: 502 })),
@@ -69,6 +69,27 @@ describe("apiFetch", () => {
     const error = (await apiFetch("/thing").catch((e: unknown) => e)) as ApiError;
     expect(error.code).toBe("INTERNAL_ERROR");
     expect(error.status).toBe(502);
+  });
+
+  it.each([
+    ["a gateway's own JSON", { detail: "Bad Gateway" }],
+    ["a failure envelope with no error object", { success: false }],
+    ["an error object missing its code", { success: false, error: { message: "x" } }],
+    ["a JSON literal", "nope"],
+    ["null", null],
+  ])("throws ApiError, not TypeError, for %s", async (_label, payload) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        mockResponse(payload, 502),
+      ),
+    );
+    const error = await apiFetch("/thing").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe("INTERNAL_ERROR");
+    expect((error as ApiError).status).toBe(502);
+    // The status and a correlatable id survive, which is the whole point.
+    expect((error as ApiError).requestId).toMatch(/^req_/);
   });
 });
 
