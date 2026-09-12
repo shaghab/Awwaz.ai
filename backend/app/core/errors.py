@@ -1,12 +1,14 @@
 """Canonical errors and global handlers (PRD §19)."""
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse, Response
 
 from app.core.envelope import err
 
@@ -102,6 +104,35 @@ class StorageFailure(AppError):
 
 class InternalError(AppError):
     pass
+
+
+class UnhandledErrorMiddleware(BaseHTTPMiddleware):
+    """Turn an unhandled exception into the canonical envelope from *inside* the
+    user middleware stack.
+
+    Starlette's ServerErrorMiddleware wraps everything added with
+    `add_middleware`, so a 500 it builds never travels back out through CORS,
+    access logging, or request-ID tagging: cross-origin the browser cannot even
+    read the body, and the response carries no X-Request-ID. Catching here makes
+    the error an ordinary response on the way out, so it picks all three up.
+
+    Mounted innermost (added first in the app factory). The registered
+    `Exception` handler stays as a last resort for anything raised in the
+    middleware layered outside this one.
+    """
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        try:
+            return await call_next(request)
+        except Exception:
+            # Stack trace stays server-side (PRD §19, §23).
+            logger.exception("unhandled_exception")
+            return JSONResponse(
+                status_code=500,
+                content=err("INTERNAL_ERROR", InternalError.default_message),
+            )
 
 
 _HTTP_STATUS_TO_CODE = {

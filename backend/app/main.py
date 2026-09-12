@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import build_api_router
 from app.api.routes import health
 from app.core.config import get_settings
-from app.core.errors import register_error_handlers
+from app.core.errors import UnhandledErrorMiddleware, register_error_handlers
 from app.core.logging import AccessLogMiddleware, configure_logging
 from app.core.request_id import RequestIDMiddleware
 
@@ -27,8 +27,11 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if published_docs else None,
     )
 
-    # Starlette runs middleware in reverse registration order, so the request ID
-    # middleware is added last to make it the outermost layer.
+    # Starlette runs middleware in reverse registration order: the last added is
+    # outermost. So request ID goes on last, and the unhandled-error catcher
+    # first, where it sits innermost and can turn an exception into a response
+    # that the other three still decorate on its way out.
+    app.add_middleware(UnhandledErrorMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.APP_BASE_URL],
