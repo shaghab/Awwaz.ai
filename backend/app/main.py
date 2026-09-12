@@ -15,10 +15,16 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging()
 
+    # Disabling only docs_url still leaves /redoc and /openapi.json serving the
+    # schema, which lists the demo routes that their 404 gating exists to hide.
+    published_docs = settings.AWWAZ_ENV != "prod"
+
     app = FastAPI(
         title="Awwaz API",
         version="0.1.0",
-        docs_url="/docs" if settings.AWWAZ_ENV != "prod" else None,
+        docs_url="/docs" if published_docs else None,
+        redoc_url="/redoc" if published_docs else None,
+        openapi_url="/openapi.json" if published_docs else None,
     )
 
     # Starlette runs middleware in reverse registration order, so the request ID
