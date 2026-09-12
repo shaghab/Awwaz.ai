@@ -1,0 +1,31 @@
+"""Declarative base and shared column helpers (D2, D11: all timestamps are UTC timestamptz)."""
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, func
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+def uuid_pk() -> Mapped[uuid.UUID]:
+    return mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+
+def created_at_column() -> Mapped[datetime]:
+    return mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+
+
+def updated_at_column() -> Mapped[datetime]:
+    return mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
