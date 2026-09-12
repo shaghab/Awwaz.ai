@@ -32,9 +32,42 @@ describe("apiFetch", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/v1/thing");
     expect(init?.credentials).toBe("include");
-    expect(
-      (init?.headers as Record<string, string>)["X-Request-ID"],
-    ).toMatch(/^req_[0-9a-f]{26}$/);
+    expect(new Headers(init?.headers).get("X-Request-ID")).toMatch(
+      /^req_[0-9a-f]{26}$/,
+    );
+  });
+
+  it.each([
+    ["a plain object", { "Idempotency-Key": "k1" } as HeadersInit],
+    ["a Headers instance", new Headers({ "Idempotency-Key": "k1" })],
+    ["an array of tuples", [["Idempotency-Key", "k1"]] as HeadersInit],
+  ])("preserves caller headers given as %s", async (_label, callerHeaders) => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockResponse({ success: true, data: null }));
+    await apiFetch("/thing", { headers: callerHeaders });
+
+    const sent = new Headers(fetchMock.mock.calls[0][1]?.headers);
+    expect(sent.get("Idempotency-Key")).toBe("k1");
+    // The defaults still go out alongside it.
+    expect(sent.get("Content-Type")).toBe("application/json");
+    expect(sent.get("X-Request-ID")).toMatch(/^req_/);
+  });
+
+  it("lets a caller override the request id, and reports that one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        mockResponse(
+          { success: false, error: { code: "NOT_FOUND", message: "no" } },
+          404,
+        ),
+      ),
+    );
+    const error = (await apiFetch("/thing", {
+      headers: { "X-Request-ID": "req_caller_chose" },
+    }).catch((e: unknown) => e)) as ApiError;
+    expect(error.requestId).toBe("req_caller_chose");
   });
 
   it("throws ApiError carrying the code and request id", async () => {

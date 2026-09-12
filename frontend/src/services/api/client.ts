@@ -46,15 +46,18 @@ export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const requestId = newRequestId();
+  // Normalized rather than spread: RequestInit.headers may legally be a Headers
+  // instance (no enumerable properties, so spreading yields {}) or an array of
+  // tuples (spreading yields numeric keys). Either would drop caller headers.
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", headers.get("Content-Type") ?? "application/json");
+  const requestId = headers.get("X-Request-ID") ?? newRequestId();
+  headers.set("X-Request-ID", requestId);
+
   const response = await fetch(`/api/v1${path}`, {
     ...init,
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Request-ID": requestId,
-      ...(init.headers ?? {}),
-    },
+    headers,
   });
 
   let payload: unknown;
