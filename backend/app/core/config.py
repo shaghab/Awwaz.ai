@@ -1,13 +1,19 @@
 """Application settings (PRD §27)."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# The Makefile runs every backend command from `backend/`, so a relative env_file
+# would resolve there. The documented quick start creates `.env` at the
+# repository root, which is what this points at.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env", extra="ignore")
 
     # Required (PRD §27)
     DATABASE_URL: str
