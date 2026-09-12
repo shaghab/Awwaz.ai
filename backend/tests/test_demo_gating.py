@@ -43,3 +43,26 @@ def test_demo_reset_is_hidden_from_the_wrong_role(client, seeded, demo_mode):
 
 def test_demo_users_is_hidden(prod_mode):
     assert prod_mode.get("/api/v1/auth/demo-users").status_code == 404
+
+
+DEMO_PATHS = [
+    ("POST", "/api/v1/auth/demo-login"),
+    ("GET", "/api/v1/auth/demo-users"),
+    ("POST", "/api/v1/admin/demo/reset"),
+]
+
+
+@pytest.mark.parametrize(("method", "path"), DEMO_PATHS)
+def test_demo_routes_do_not_exist_at_all_in_prod_mode(prod_mode, method, path):
+    """A wrong verb must not out them either: a registered route answers an
+    undeclared method with 405 during routing, before dependencies run, which
+    confirms it exists. An unmounted route is 404 for every verb."""
+    assert prod_mode.request(method, path).status_code == 404
+
+    wrong_verb = "GET" if method == "POST" else "DELETE"
+    assert prod_mode.request(wrong_verb, path).status_code == 404
+
+
+@pytest.mark.parametrize(("method", "path"), DEMO_PATHS)
+def test_demo_routes_are_mounted_when_demo_mode_is_on(client, seeded, method, path):
+    assert client.request(method, path).status_code != 404

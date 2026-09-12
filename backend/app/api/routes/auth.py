@@ -20,12 +20,17 @@ from app.models import ActorType, AuditResult
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Mounted only when demo mode is on (see app.api.router). Registering these
+# conditionally is what actually hides them: a route that exists answers a wrong
+# verb with 405, which confirms it exists no matter what its dependencies say.
+demo_router = APIRouter(prefix="/auth", tags=["auth", "demo"])
+
 
 class DemoLoginRequest(BaseModel):
     user_key: str
 
 
-@router.post("/demo-login", dependencies=[Depends(require_demo_mode)])
+@demo_router.post("/demo-login", dependencies=[Depends(require_demo_mode)])
 def demo_login(
     payload: DemoLoginRequest, response: Response, db: DbSession = Depends(get_db)
 ) -> dict[str, object]:
@@ -45,7 +50,7 @@ def demo_login(
     return ok({"actor": actor.to_dict()})
 
 
-@router.get("/demo-users", dependencies=[Depends(require_demo_mode)])
+@demo_router.get("/demo-users", dependencies=[Depends(require_demo_mode)])
 def demo_users(db: DbSession = Depends(get_db)) -> dict[str, object]:
     return ok(
         {

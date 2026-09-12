@@ -9,10 +9,11 @@ from app.db.session import get_db
 from app.domain.audit import service as audit
 from app.models import ActorType, UserRole
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+# Every route here is demo-only, so the whole router is mounted conditionally.
+demo_router = APIRouter(prefix="/admin", tags=["admin", "demo"])
 
 
-@router.post("/demo/reset", dependencies=[Depends(require_demo_mode)])
+@demo_router.post("/demo/reset", dependencies=[Depends(require_demo_mode)])
 def demo_reset(
     actor: Actor = Depends(require_roles(UserRole.ADMIN)),
     db: DbSession = Depends(get_db),
